@@ -84,6 +84,7 @@ object WikipediaRanking {
     /* Languages ranked according to (1) */
     wikiRdd.persist()
     val langsRanked: List[(String, Int)] = timed("Part 1: naive ranking", rankLangs(langs, wikiRdd))
+    println(s"Part 1: naive ranking")
     langsRanked.foreach(println)
 
     /* An inverted index mapping languages to wikipedia pages on which they appear */
@@ -91,10 +92,12 @@ object WikipediaRanking {
 
     /* Languages ranked according to (2), using the inverted index */
     val langsRanked2: List[(String, Int)] = timed("Part 2: ranking using inverted index", rankLangsUsingIndex(index))
+    println(s"Part 2: ranking using inverted index")
     langsRanked2.foreach(println)
     /* Languages ranked according to (3) */
     val langsRanked3: List[(String, Int)] = timed("Part 3: ranking using reduceByKey", rankLangsReduceByKey(langs, wikiRdd))
-
+    println(s"Part 3: ranking using reduceByKey")
+    langsRanked3.foreach(println)
     /* Output the speed of each ranking */
     println(timing)
     sc.stop()
