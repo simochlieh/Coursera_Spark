@@ -3,7 +3,7 @@ Gauging how popular a programming language is important for companies judging wh
 
 In this assignment, we'll use our full-text data from Wikipedia to produce a rudimentary metric of how popular a programming language is, in an effort to see if our Wikipedia-based rankings bear any relation to the popular Red Monk rankings.
 
-# How to run the job:
+## How to run the job:
 
 First you will have to download the wikipedia data (133M) and save it under `src/main/resources/wikipedia/wikipedia.dat`. To do that run the following command from `assignment_1/wikipedia`:
 
