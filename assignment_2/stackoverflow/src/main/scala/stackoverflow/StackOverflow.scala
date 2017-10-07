@@ -24,6 +24,7 @@ object StackOverflow extends StackOverflow {
     val grouped = groupedPostings(raw)
     val scored  = scoredPostings(grouped)
     val vectors = vectorPostings(scored)
+    vectors.persist()
 //    assert(vectors.count() == 2121822, "Incorrect number of vectors: " + vectors.count())
 
     val means   = kmeans(sampleVectors(vectors), vectors, debug = true)
@@ -82,9 +83,7 @@ class StackOverflow extends Serializable {
       case Some(_) => true
       case _ => false
     })).map(p => {
-      val parent: QID = p.parentId match {
-        case Some(x) => x
-      }
+      val parent: QID = p.parentId.get
       (parent, p: Answer)
     })
     val join = questions.join(answers)
@@ -131,7 +130,10 @@ class StackOverflow extends Serializable {
       }
     }
 
-    ???
+    scored.filter(sc => sc._1.tags match {
+      case Some(tags) => true
+      case None => false
+    }).map(sc => (firstLangInTag(sc._1.tags, langs).get*langSpread, sc._2))
   }
 
 
@@ -186,7 +188,35 @@ class StackOverflow extends Serializable {
 
   /** Main kmeans computation */
   @tailrec final def kmeans(means: Array[(Int, Int)], vectors: RDD[(Int, Int)], iter: Int = 1, debug: Boolean = false): Array[(Int, Int)] = {
-    val newMeans = means.clone() // you need to compute newMeans
+    val newMeans = {
+      val result = new Array[(Int, Int)](kmeansKernels)
+      val closestCluster = vectors.map(p => (findClosest(p, means), p))
+        .groupByKey()
+        .map(p => (p._1, averageVectors(p._2)))
+        .collect()
+        .sortBy(_._1)
+      var i = 0
+      var j = 0
+      while (i < kmeansKernels) {
+        if (i < closestCluster.length) {
+          val currPoint = closestCluster(j)
+          if (currPoint._1 == i) {
+            result(i) = currPoint._2
+            i += 1
+            j += 1
+          } else {
+            result(i) = means(i)
+            i += 1
+            // we found a missing cluster in closestCluster
+          }
+        } else {
+          result(i) = means(i)
+          i += 1
+        }
+      }
+      result
+    } // you need to compute newMeans
+
 
     // TODO: Fill in the newMeans array
     val distance = euclideanDistance(means, newMeans)
@@ -236,7 +266,7 @@ class StackOverflow extends Serializable {
 
   /** Return the euclidean distance between two points */
   def euclideanDistance(a1: Array[(Int, Int)], a2: Array[(Int, Int)]): Double = {
-    assert(a1.length == a2.length)
+    assert(a1.length == a2.length, s"a1.length: ${a1.length} a2.length: ${a2.length}")
     var sum = 0d
     var idx = 0
     while(idx < a1.length) {
@@ -250,7 +280,7 @@ class StackOverflow extends Serializable {
   def findClosest(p: (Int, Int), centers: Array[(Int, Int)]): Int = {
     var bestIndex = 0
     var closest = Double.PositiveInfinity
-    for (i <- 0 until centers.length) {
+    for (i <- centers.indices) {
       val tempDist = euclideanDistance(p, centers(i))
       if (tempDist < closest) {
         closest = tempDist
